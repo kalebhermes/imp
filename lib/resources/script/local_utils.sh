@@ -68,7 +68,7 @@ EOF
   (cd "$app_dir/ios"; bundle install)
 
   # call match to install developer certificate and provisioning profile
-  (cd "$app_dir/ios"; fastlane match adhoc mode:debug)
+  (cd "$app_dir/ios"; fastlane match adhoc mode:debug --verbose)
 }
 
 build_debug_ipa() {
