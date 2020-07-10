@@ -92,9 +92,18 @@ platform :ios do
 
   desc "Build debug .ipa"
   lane :build_debug_ipa do
-    enable_match_code_signing mode:'debug'
+    match(
+      app_identifier: CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier),
+      type: "adhoc",
+      readonly: is_ci,
+      keychain_name: keychain_name,
+      keychain_password: keychain_password,
+      git_url: "git@gitawse1.hagerty.com:Hagerty/ios-certificates.git",
+      git_branch: "updates",
+      force_for_new_devices: true
+    )
     #build_app(workspace: "Runner.xcworkspace", scheme: "Runner")
-    build_app(export_method: 'development', output_name: "Debug_Runner.ipa")
+    build_app(method: "ad-hoc", output_name: "Debug_Runner.ipa")
     sh ("cd .. && mv Debug_Runner.ipa ..")
     sh ("cd .. && mv Debug_Runner.app.dSYM.zip ..")
   end

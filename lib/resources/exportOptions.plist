@@ -8,7 +8,7 @@
         <key>provisioningProfiles</key>
         <dict>
             <key>$APP_IDENTIFIER</key>
-            <string>match Development $APP_IDENTIFIER</string>
+            <string>match AdHoc com.hagerty.*</string>
             <!--<string>match AppStore com.mycompany.myapp</string>-->
         </dict>
         <key>signingCertificate</key>
