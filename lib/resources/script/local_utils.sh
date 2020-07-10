@@ -68,8 +68,8 @@ EOF
   (cd "$app_dir/ios"; bundle install)
 
   echo "deleting and creating keychain"
-  local keychain_name = "fastlane_flutter"
-  local keychain_password = "temppassword"
+  local keychain_name="fastlane_flutter"
+  local keychain_password="temppassword"
 
   local FILE=$HOME/Keychains/$keychain_name-db
   echo $FILE
