@@ -80,9 +80,9 @@ EOF
 
   fastlane run create_keychain name:keychain_name password:keychain_password unlock:false timeout:false
 
-  echo "Running fastlane match adhoc username:khermes@hagerty.com mode:debug readonly:true app_identifier:com.hagerty.* --verbose"
+  echo "Running fastlane match adhoc username:khermes@hagerty.com mode:debug readonly:true app_identifier:com.hagerty.* keychain_name:$keychain_name keychain_password:$keychain_password --verbose"
   # call match to install developer certificate and provisioning profile
-  (cd "$app_dir/ios"; fastlane match adhoc username:khermes@hagerty.com mode:debug readonly:true app_identifier:com.hagerty.* --verbose )
+  (cd "$app_dir/ios"; fastlane match adhoc username:khermes@hagerty.com mode:debug readonly:true app_identifier:com.hagerty.* keychain_name:$keychain_name keychain_password:$keychain_password --verbose )
 }
 
 build_debug_ipa() {
