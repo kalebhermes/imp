@@ -75,10 +75,10 @@ EOF
   echo $FILE
   if [ -f "$FILE" ]; then
     echo "$FILE exists."
-    fastlane run delete_keychain name:keychain_name
+    fastlane run delete_keychain name:$keychain_name
   fi
 
-  fastlane run create_keychain name:keychain_name password:keychain_password unlock:false timeout:false
+  fastlane run create_keychain name:$keychain_name password:$keychain_password unlock:false timeout:false
 
   echo "Running fastlane match adhoc username:khermes@hagerty.com mode:debug readonly:true app_identifier:com.hagerty.* keychain_name:$keychain_name keychain_password:$keychain_password --verbose"
   # call match to install developer certificate and provisioning profile
@@ -149,6 +149,10 @@ build_debug_ipa() {
     mv "$ios_build_dir/$scheme.ipa" "$ios_build_dir/$default_debug_ipa_name"
 
     echo "Debug .ipa successfully created in $ios_build_dir/$default_debug_ipa_name"
+    echo "Deleting temp keychain"
+
+    local keychain_name="fastlane_flutter"
+    fastlane run delete_keychain name:$keychain_name
 }
 
 # temporarily remove debug .ipa archive disabler
