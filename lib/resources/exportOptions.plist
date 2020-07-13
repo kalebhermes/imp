@@ -4,22 +4,22 @@
     <dict>
         <key>method</key>
         <!--<string>app-store</string>-->
-        <string>development</string>
+        <string>ad-hoc</string>
         <key>provisioningProfiles</key>
         <dict>
-            <key>$APP_IDENTIFIER</key>
+            <key>com.hagerty.insider</key>
             <string>match AdHoc com.hagerty.*</string>
             <!--<string>match AppStore com.mycompany.myapp</string>-->
         </dict>
         <key>signingCertificate</key>
-        <!--<string>iPhone Distribution</string>-->
-        <string>iPhone Developer</string>
+        <string>iPhone Distribution</string>
+        <!-- <string>iPhone Developer</string> -->
         <!--<key>signingStyle</key>-->
         <!--<string>manual</string>-->
         <key>stripSwiftSymbols</key>
         <true/>
         <key>teamID</key>
-        <string>$TEAM_ID</string>
+        <string>4J6T7JTR97</string>
         <key>uploadSymbols</key>
         <false/>
     </dict>

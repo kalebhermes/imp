@@ -15,7 +15,7 @@ import 'base/devices.dart';
 import 'base/utils.dart';
 
 const kDebugApkPath = 'build/app/outputs/apk/debug/app-debug.apk';
-const kDebugIpaPath = 'build/ios/Debug-iphoneos/Debug_Runner.ipa';
+const kDebugIpaPath = 'ios/build/Runner/Debug_Runner.ipa';
 
 /// Processes config file (subject to change).
 /// For each device pool:
@@ -212,7 +212,7 @@ Future<String> _buildUploadApp(String projectArn, DeviceType poolType,
       await streamCmd(
           ['$tmpDir/script/local_utils.sh', '--ci', fs.currentDirectory.path]);
     }
-    command = ['$tmpDir/script/local_utils.sh', '--build-debug-ipa'];
+    command = ['$tmpDir/script/local_utils.sh', '--build-debug-ipa', fs.currentDirectory.path];
     addFlavor(flavor);
     await streamCmd(command);
     // Upload ipa

@@ -1,97 +1,50 @@
-opt_out_usage # disable sending analytics
-
-# This file contains the fastlane.tools configuration
-# You can find the documentation at https://docs.fastlane.tools
-#
-# For a list of all available actions, check out
-#
-#     https://docs.fastlane.tools/actions
-#
-# For a list of all available plugins, check out
-#
-#     https://docs.fastlane.tools/plugins/available-plugins
-#
-
-# Uncomment the line if you want fastlane to automatically update itself
-# update_fastlane
+# Automatically update fastlane
+update_fastlane
 
 default_platform(:ios)
-setup_travis # unlock travis keychain (may remove at some point)
 
-# suppress output
-def suppress_output
-  original_stdout, original_stderr = $stdout.clone, $stderr.clone
-  $stderr.reopen File.new('/dev/null', 'w')
-  $stdout.reopen File.new('/dev/null', 'w')
-  yield
-ensure
-  $stdout.reopen original_stdout
-  $stderr.reopen original_stderr
+# Default temporary keychain password and name, if not included from environment
+TEMP_KEYCHAIN_NAME_DEFAULT = "fastlane_flutter"
+TEMP_KEYCHAN_PASSWORD_DEFAULT = "temppassword"
+APP_ID = ENV['FIREBASE_APPID'] || "1:924200794788:ios:45665cf64d60b47866c431"
+FIREBASE_TOKEN = ENV['FIREBASE_CI_TOKEN']
+
+
+# Remove the temporary keychain, if it exists
+def delete_temp_keychain(name)
+  delete_keychain(
+    name: name
+  ) if File.exist? File.expand_path("~/Library/Keychains/#{name}-db")
+end
+
+# Create the temporary keychain with name and password
+def create_temp_keychain(name, password)
+  create_keychain(
+    name: name,
+    password: password,
+    unlock: false,
+    timeout: false
+  )
+end
+
+# Ensure we have a fresh, empty temporary keychain
+def ensure_temp_keychain(name, password)
+  delete_temp_keychain(name)
+  create_temp_keychain(name, password)
 end
 
 platform :ios do
-
-  desc "enable match code signing"
-  lane :enable_match_code_signing do |options|
-
-    # establish release or debug mode local vars
-    signing_type=''
-    build_configuration=''
-    #profile_name='' <-- this is an environment var
-    app_identifier=CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)
-    if options[:mode]=="debug"
-      signing_type='development'
-      build_configuration='Debug'
-      profile_name='sigh_' + app_identifier + '_development_profile-path'
-    else
-      signing_type='appstore'
-      build_configuration='Release'
-      profile_name='sigh_' + app_identifier + '_appstore_profile-path'
-    end
-    puts "signing_type: #{signing_type}"
-    puts "build_configuration: #{build_configuration}"
-    puts "profile_name: #{profile_name}"
-    puts "app_identifier: #{app_identifier}"
-
-    puts 'Retrieving signing certificates and profiles...'
-    # Stop fastlane from echoing back PUBLISHING_MATCH_CERTIFICATE_REPO var.
-    suppress_output {
-      # Retrieves all the necessary certs and provisioning profiles.
-        #force_for_new_devices: true,
-        #readonly: false,
-        #username: 'mmcc007@gmail.com'
-      sync_code_signing(
-        git_url: ENV['PUBLISHING_MATCH_CERTIFICATE_REPO'],
-        type: signing_type,
-        keychain_name: 'fastlane_tmp_keychain',
-        readonly: true,
-      )
-    }
-    puts 'Certificates and profiles installed'
-
-    disable_automatic_code_signing
-
-    # set provisioning profile
-    update_project_provisioning(
-      xcodeproj: 'Runner.xcodeproj',
-      target_filter: 'Runner',
-      build_configuration: build_configuration,
-      profile: ENV[profile_name],
+  desc "Build & sign iOS app"
+  lane :build_ios do |options|
+    disable_automatic_code_signing(
+      path: "./Runner.xcodeproj",
+      team_id: CredentialsManager::AppfileConfig.try_fetch_value(:team_id),
+      profile_name: "match AdHoc #{CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)}",
+      code_sign_identity: "iPhone Distribution"
     )
-  end
-
-
-  desc "build debug .app"
-  lane :build_debug do
-    #pre_build_debug
-    enable_match_code_signing mode:'debug'
-    #sh ("cd ../.. && flutter build ios --debug")
-    sh ("cd ../.. && flutter build ios --debug test_driver/main.dart")
-    #build_app(workspace: "Runner.xcworkspace", scheme: "Runner")
-  end
-
-  desc "Build debug .ipa"
-  lane :build_debug_ipa do
+    keychain_name = ENV['TEMP_KEYCHAIN_NAME'] || TEMP_KEYCHAIN_NAME_DEFAULT
+    keychain_password = ENV['TEMP_KEYCHAIN_PASSWORD'] || TEMP_KEYCHAN_PASSWORD_DEFAULT
+    ensure_temp_keychain(keychain_name, keychain_password)
     match(
       app_identifier: CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier),
       type: "adhoc",
@@ -102,28 +55,192 @@ platform :ios do
       git_branch: "updates",
       force_for_new_devices: true
     )
-    #build_app(workspace: "Runner.xcworkspace", scheme: "Runner")
-    build_app(method: "ad-hoc", output_name: "Debug_Runner.ipa")
-    sh ("cd .. && mv Debug_Runner.ipa ..")
-    sh ("cd .. && mv Debug_Runner.app.dSYM.zip ..")
+    increment_build_number(
+      build_number: ENV["BUILD_NUMBER"]
+    )
+    build_ios_app(
+      export_options: {
+          method: "ad-hoc"
+      },
+      output_directory: "./build/Runner"
+    )
+
+  end
+  desc "Build & sign iOS app"
+  lane :build_release_candidate do |options|
+    disable_automatic_code_signing(
+      path: "./Runner.xcodeproj",
+      team_id: CredentialsManager::AppfileConfig.try_fetch_value(:team_id),
+      profile_name: "match AppStore #{CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)}",
+      code_sign_identity: "iPhone Distribution"
+    )
+    keychain_name = ENV['TEMP_KEYCHAIN_NAME'] || TEMP_KEYCHAIN_NAME_DEFAULT
+    keychain_password = ENV['TEMP_KEYCHAIN_PASSWORD'] || TEMP_KEYCHAN_PASSWORD_DEFAULT
+    ensure_temp_keychain(keychain_name, keychain_password)
+    match(
+      app_identifier: CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier),
+      type: "appstore",
+      readonly: is_ci,
+      keychain_name: keychain_name,
+      keychain_password: keychain_password,
+      git_url: "git@gitawse1.hagerty.com:Hagerty/ios-certificates.git",
+      git_branch: "updates"
+    )
+    increment_build_number(
+      build_number: ENV["BUILD_NUMBER"]
+    )
+    build_ios_app(
+      export_options: {
+          method: "app-store"
+      },
+      output_directory: "./build/Runner"
+    )
+    delete_temp_keychain(keychain_name)
   end
 
-  desc "Resign debug .ipa"
-  lane :resign_app do
-    resign(
-      ipa: "../../Debug_Runner.ipa", # can omit if using the `ipa` action
-      signing_identity: "iPhone Distribution: Maurice McCabe (ET2VMHJPVM)",
-      #provisioning_profile: "path/to/profile", # can omit if using the _sigh_ action
+  desc "Deploy a new beta build"
+  lane :distribute_beta do |options|
+    # Upload to test flight or AppStore depending on caller parameters
+    firebase_app_distribution(
+          app: APP_ID,
+          groups: "testers",
+          release_notes: ENV["RELEASE_NOTES"],
+          firebase_cli_token: FIREBASE_TOKEN,
+          ipa_path: "./build/Runner/Runner.ipa"
+      )
+  end
+
+  desc "Deploy (Upload to testflight)"
+  lane :deploy_release_candidate do |options|
+    # Upload to test flight or AppStore depending on caller parameters
+    upload_to_testflight(
+      skip_submission: true,
+      ipa: "./build/Runner/Runner.ipa",
+      team_id: "4J6T7JTR97",
+      team_name: "THE HAGERTY GROUP INC"
     )
   end
+end
+# Automatically update fastlane
+update_fastlane
 
-  desc "Build release .ipa"
-  lane :build_release do
-    enable_match_code_signing mode:'release'
-    #build_app(workspace: "Runner.xcworkspace", scheme: "Runner")
-    build_app(output_name: "Release_Runner.ipa")
-    sh ("cd .. && mv Release_Runner.ipa ..")
-    sh ("cd .. && mv Release_Runner.app.dSYM.zip ..")
+default_platform(:ios)
+
+# Default temporary keychain password and name, if not included from environment
+TEMP_KEYCHAIN_NAME_DEFAULT = "fastlane_flutter"
+TEMP_KEYCHAN_PASSWORD_DEFAULT = "temppassword"
+APP_ID = ENV['FIREBASE_APPID'] || "1:924200794788:ios:45665cf64d60b47866c431"
+FIREBASE_TOKEN = ENV['FIREBASE_CI_TOKEN']
+
+
+# Remove the temporary keychain, if it exists
+def delete_temp_keychain(name)
+  delete_keychain(
+    name: name
+  ) if File.exist? File.expand_path("~/Library/Keychains/#{name}-db")
+end
+
+# Create the temporary keychain with name and password
+def create_temp_keychain(name, password)
+  create_keychain(
+    name: name,
+    password: password,
+    unlock: false,
+    timeout: false
+  )
+end
+
+# Ensure we have a fresh, empty temporary keychain
+def ensure_temp_keychain(name, password)
+  delete_temp_keychain(name)
+  create_temp_keychain(name, password)
+end
+
+platform :ios do
+  desc "Build & sign iOS app"
+  lane :build_ios do |options|
+    disable_automatic_code_signing(
+      path: "./Runner.xcodeproj",
+      team_id: CredentialsManager::AppfileConfig.try_fetch_value(:team_id),
+      profile_name: "match AdHoc #{CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)}",
+      code_sign_identity: "iPhone Distribution"
+    )
+    keychain_name = ENV['TEMP_KEYCHAIN_NAME'] || TEMP_KEYCHAIN_NAME_DEFAULT
+    keychain_password = ENV['TEMP_KEYCHAIN_PASSWORD'] || TEMP_KEYCHAN_PASSWORD_DEFAULT
+    ensure_temp_keychain(keychain_name, keychain_password)
+    match(
+      app_identifier: CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier),
+      type: "adhoc",
+      readonly: is_ci,
+      keychain_name: keychain_name,
+      keychain_password: keychain_password,
+      git_url: "git@gitawse1.hagerty.com:Hagerty/ios-certificates.git",
+      git_branch: "updates",
+      force_for_new_devices: true
+    )
+    increment_build_number(
+      build_number: ENV["BUILD_NUMBER"]
+    )
+    build_ios_app(
+      export_options: {
+          method: "ad-hoc"
+      },
+      output_directory: "./build/Runner"
+    )
+
+  end
+  desc "Build & sign iOS app"
+  lane :build_release_candidate do |options|
+    disable_automatic_code_signing(
+      path: "./Runner.xcodeproj",
+      team_id: CredentialsManager::AppfileConfig.try_fetch_value(:team_id),
+      profile_name: "match AppStore #{CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)}",
+      code_sign_identity: "iPhone Distribution"
+    )
+    keychain_name = ENV['TEMP_KEYCHAIN_NAME'] || TEMP_KEYCHAIN_NAME_DEFAULT
+    keychain_password = ENV['TEMP_KEYCHAIN_PASSWORD'] || TEMP_KEYCHAN_PASSWORD_DEFAULT
+    ensure_temp_keychain(keychain_name, keychain_password)
+    match(
+      app_identifier: CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier),
+      type: "appstore",
+      readonly: is_ci,
+      keychain_name: keychain_name,
+      keychain_password: keychain_password,
+      git_url: "git@gitawse1.hagerty.com:Hagerty/ios-certificates.git",
+      git_branch: "updates"
+    )
+    increment_build_number(
+      build_number: ENV["BUILD_NUMBER"]
+    )
+    build_ios_app(
+      export_options: {
+          method: "app-store"
+      },
+      output_directory: "./build/Runner"
+    )
+    delete_temp_keychain(keychain_name)
   end
 
+  desc "Deploy a new beta build"
+  lane :distribute_beta do |options|
+    # Upload to test flight or AppStore depending on caller parameters
+    firebase_app_distribution(
+          app: APP_ID,
+          groups: "testers",
+          release_notes: ENV["RELEASE_NOTES"],
+          firebase_cli_token: FIREBASE_TOKEN,
+          ipa_path: "./build/Runner/Runner.ipa"
+      )
+  end
+
+  desc "Deploy (Upload to testflight)"
+  lane :deploy_release_candidate do |options|
+    # Upload to test flight or AppStore depending on caller parameters
+    upload_to_testflight(
+      skip_submission: true,
+      ipa: "./build/Runner/Runner.ipa",
+      team_id: "4J6T7JTR97",
+      team_name: "THE HAGERTY GROUP INC"
+    )
+  end
 end

@@ -8,7 +8,7 @@ set -e
 main(){
   case $1 in
     --build-debug-ipa)
-        build_debug_ipa "$3"
+        build_debug_ipa "$2" "$4"
         ;;
     --ci)
         if [[ -z $2 ]]; then show_help; fi
@@ -71,7 +71,7 @@ EOF
   local keychain_name="fastlane_flutter"
   local keychain_password="temppassword"
 
-  local FILE=$HOME/Keychains/$keychain_name-db
+  local FILE=$HOME/Keychains/$keychain_name
   echo $FILE
   if [ -f "$FILE" ]; then
     echo "$FILE exists."
@@ -80,12 +80,31 @@ EOF
 
   fastlane run create_keychain name:$keychain_name password:$keychain_password unlock:false timeout:false
 
-  echo "Running fastlane match adhoc username:khermes@hagerty.com mode:debug readonly:true app_identifier:com.hagerty.* keychain_name:$keychain_name keychain_password:$keychain_password --verbose"
+  # echo `fastlane match adhoc username:"khermes@hagerty.com" mode:"debug" readonly:"true" keychain_name:"$keychain_name" keychain_password:"$keychain_password" app_identifier:"com.hagerty.*" --verbose )`
   # call match to install developer certificate and provisioning profile
-  (cd "$app_dir/ios"; fastlane match adhoc username:khermes@hagerty.com mode:debug readonly:true app_identifier:com.hagerty.* keychain_name:$keychain_name keychain_password:$keychain_password --verbose )
+  (cd "$app_dir/ios"; fastlane match adhoc username:"khermes@hagerty.com" mode:"debug" readonly:"true" keychain_name:"$keychain_name" keychain_password:"$keychain_password" app_identifier:"com.hagerty.*" --verbose )
 }
 
 build_debug_ipa() {
+  local app_dir=$1
+  local flavor=$2
+  local ios_build_dir="$PWD/ios/Build/Runner";
+  local default_debug_ipa_name='Debug_Runner.ipa'
+
+  cd "$app_dir"
+  rm lib/main.dart
+  cp test_driver/main.dart lib/main.dart
+  
+  gem install bundler:2.0.1 # the fastlane gem file requires bundler 2.0
+  # (cd "$app_dir/ios"; bundle install)
+  cd "$app_dir/ios"
+  # flutter pub get
+  bundle exec fastlane build_ios
+  cp "$ios_build_dir/Runner.ipa" "$ios_build_dir/$default_debug_ipa_name"
+
+}
+
+legacy_build_debug_ipa() {
     local flavor=$1
 
 #    echo "Building debug .ipa for upload to Device Farm..."
@@ -99,7 +118,9 @@ build_debug_ipa() {
     local scheme
     if [[ -z "$flavor" ]]; then
         echo "Running flutter build ios -t test_driver/main.dart --debug..."
-        flutter build ios -t test_driver/main.dart --debug
+        # flutter build ios -t test_driver/main.dart --debug
+        (cd "$app_dir/ios"; bundle install)
+        fastlane build_ios
         scheme="$app_name"
         build_config="Debug"
     else
