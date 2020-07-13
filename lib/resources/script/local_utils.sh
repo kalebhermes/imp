@@ -62,27 +62,6 @@ EOF
   # note: for additional security ssh keys can be generated on CI build machine
   chmod 600 "$app_dir/dummy-ssh-keys/key"
   chmod 700 "$app_dir/dummy-ssh-keys"
-
-  # install fastlane
-  gem install bundler:2.0.1 # the fastlane gem file requires bundler 2.0
-  (cd "$app_dir/ios"; bundle install)
-
-  echo "deleting and creating keychain"
-  local keychain_name="fastlane_flutter"
-  local keychain_password="temppassword"
-
-  local FILE=$HOME/Keychains/$keychain_name
-  echo $FILE
-  if [ -f "$FILE" ]; then
-    echo "$FILE exists."
-    fastlane run delete_keychain name:$keychain_name
-  fi
-
-  fastlane run create_keychain name:$keychain_name password:$keychain_password unlock:false timeout:false
-
-  # echo `fastlane match adhoc username:"khermes@hagerty.com" mode:"debug" readonly:"true" keychain_name:"$keychain_name" keychain_password:"$keychain_password" app_identifier:"com.hagerty.*" --verbose )`
-  # call match to install developer certificate and provisioning profile
-  (cd "$app_dir/ios"; fastlane match adhoc username:"khermes@hagerty.com" mode:"debug" readonly:"true" keychain_name:"$keychain_name" keychain_password:"$keychain_password" app_identifier:"com.hagerty.*" --verbose )
 }
 
 build_debug_ipa() {
