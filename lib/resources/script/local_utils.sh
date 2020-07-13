@@ -62,6 +62,11 @@ EOF
   # note: for additional security ssh keys can be generated on CI build machine
   chmod 600 "$app_dir/dummy-ssh-keys/key"
   chmod 700 "$app_dir/dummy-ssh-keys"
+
+  # install fastlane
+  gem install bundler:2.0.1 # the fastlane gem file requires bundler 2.0
+  (cd "$app_dir/ios"; bundle install)
+
 }
 
 build_debug_ipa() {
